@@ -7,18 +7,34 @@
 'response.end
 
 dim cont
+resposta = 0
 IF REQUEST("Operacao") = 1 THEN
 call abreConexao
+sql = "SELECT    count(*) as Quantidade FROM     TB_CadDocumento  where CodigoItensModuloFace = '"&clng(request.form("recipiente"))&"' and Status = 1" 
+
+set rs = conn.execute(sql)
+
+if clng(rs("Quantidade")) <= 20 then
 sql = "INSERT INTO TB_CadDocumento(CodigoItensModuloFace, NumAuto, Serie, Observacao, Status) VALUES('"&clng(request.form("recipiente"))&"', '"&request.Form("txtNumAuto")&"', '"&request.Form("txtNumSerie")&"', '"&request.form("txtObs")&"', 1)"
 conn.execute(sql)
+else
+resposta = 1
+end if 
 call fechaConexao
 'response.Redirect("cadDocumentos.asp?Resp=1")
 
-ELSEIF REQUEST("Operacao") = 2 THEN ' visualizar
+ELSEIF REQUEST("Operacao") = 2 or REQUEST("Operacao") = 5 THEN ' visualizar
 call abreConexao
-sql = "SELECT NumAuto, Serie, Observacao, Status FROM TB_CadDocumento WHERE NumAuto = "&request.form("AutoVisualizar")&""
+if REQUEST("Operacao") = 2 then
+sqlrestante = "NumAuto = "&request.form("AutoVisualizar")&" and Serie = '"&request.form("SerieVisualizar")&"' and Status = 1"
+else
+sqlrestante = "Codigo ='"&request.form("Codigo")&"'"
+end if 
+
+sql = "SELECT Codigo, NumAuto, Serie, Observacao, Status FROM TB_CadDocumento WHERE "&sqlrestante&""
 set rs = conn.execute(sql)
 	if not rs.eof then 
+	Codigo = rs("codigo")
 	NumAuto = rs("NumAuto")
 	Serie = rs("Serie")
 	Observacao = rs("Observacao")
@@ -33,8 +49,22 @@ call fechaConexao
 
 ELSEIF REQUEST("Operacao") = 3 THEN 'ALTERAR
 	call abreConexao
-	sql = "UPDATE TB_CadDocumento SET Serie = '"&request.Form("txtNumSerie")&"', Observacao = '"&request.Form("txtObs")&"', Status = '"&request.Form("status")&"' WHERE NumAuto = '"&request.form("txtNumAuto")&"'"
-	conn.execute(sql)
+	sql = "SELECT count(*) as Existe FROM TB_CadDocumento where NumAuto = "&request.Form("txtNumAuto")&" and Serie = '"&request.Form("txtNumSerie")&"' and Status = 1"
+	
+	set rs = conn.execute(sql)
+	if clng(rs("Existe")) = 0 then
+	  sql = "UPDATE TB_CadDocumento SET NumAuto = '"&request.Form("txtNumAuto")&"', Serie = '"&request.Form("txtNumSerie")&"', Observacao = '"&request.Form("txtObs")&"', Status = '"&request.Form("status")&"' WHERE Codigo = '"&request.form("Codigo")&"'"
+	  conn.execute(sql)
+	  sql = "SELECT    count(*) as Quantidade FROM     TB_CadDocumento  where CodigoItensModuloFace = '"&clng(request.form("recipiente"))&"' and Status = 1" 
+      set rs = conn.execute(sql)
+	  if clng(rs("Quantidade")) > 7 then
+	   sql = "UPDATE TB_CadDocumento SET  Status = 0 WHERE Codigo = '"&request.form("Codigo")&"'"
+	   conn.execute(sql)
+	   resposta = 1
+	  end if
+	else
+	 resposta = 2 ' ja existe Auto
+	end if 
 	call fechaConexao
 	'Response.Redirect("cadDocumentos.asp?Resp=2")
 END IF
@@ -42,10 +72,12 @@ END IF
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10.10.1/dist/sweetalert2.all.min.js"></script>
 <script src="javascript/Mascara.js"></script>
 <script type="text/javascript">
+
 var resp = "<%=request.form("operacao")%>"
+var resp1 = "<%=resposta%>"
 mensagem(resp)
 function mensagem(resp) {
-if (resp == "1"){
+if (resp == "1" && resp1 == "0"){
      Swal.fire({
       title: "Ótimo!!!",
       text: "Documento Cadastrado com Sucesso!",
@@ -54,7 +86,8 @@ if (resp == "1"){
       });
       return false;
 }
-if (resp == "3"){
+else
+if (resp == "3" && resp1 == "0"){
      Swal.fire({
       title: "Ótimo!!!",
       text: "Documento Alterado com Sucesso!",
@@ -63,6 +96,27 @@ if (resp == "3"){
       });
       return false;
 }
+else
+if (resp1 == "1"){
+     Swal.fire({
+      title: "Ops!!!",
+      text: "Já Excedeu o limite de Cadastro!",
+      icon: "error",
+      button: "Ok!",
+      });
+      return false;
+}
+else
+if (resp1 == "2"){
+     Swal.fire({
+      title: "Ops!!!",
+      text: "Já Consta Numero do Auto de Infração Cadastrado!",
+      icon: "error",
+      button: "Ok!",
+      });
+      return false;
+}
+
 }
 
 function validar()
@@ -113,10 +167,10 @@ function cadastrar()
 	document.frmCadDocumento.submit();
 }
 
-function visualizar(auto)
+function visualizar(Codigo)
 {
-	document.frmCadDocumento.Operacao.value = 2;
-	document.frmCadDocumento.AutoVisualizar.value = auto;
+	document.frmCadDocumento.Operacao.value = 5;
+	document.frmCadDocumento.Codigo.value = Codigo;
 	document.frmCadDocumento.action = "CadDocumentos.asp";
 	document.frmCadDocumento.submit();
 }
@@ -126,6 +180,7 @@ function verificar_cadastro()
 	{
 	document.frmCadDocumento.Operacao.value = 2;
 	document.frmCadDocumento.AutoVisualizar.value = document.frmCadDocumento.txtNumAuto.value;
+	document.frmCadDocumento.SerieVisualizar.value = document.frmCadDocumento.txtNumSerie.value;
 	document.frmCadDocumento.action = "CadDocumentos.asp";
 	document.frmCadDocumento.submit();
 	}
@@ -170,6 +225,14 @@ function ApenasLetras(e, t) {
         alert(err.Description);
     }
 }
+
+function Novo()
+{
+	document.frmCadDocumento.Operacao.value = 8;
+	document.frmCadDocumento.action = "CadDocumentos.asp";
+	document.frmCadDocumento.submit();
+}
+
 </script>
       <!-- End Navbar -->
       <div class="content">
@@ -187,6 +250,8 @@ function ApenasLetras(e, t) {
 		<form name="frmCadDocumento" id="frmCadDocumento" method="post">
         <input type="hidden" id="Operacao" name="Operacao" />
         <input type="hidden" id="AutoVisualizar" name="AutoVisualizar" />
+        <input type="hidden" id="SerieVisualizar" name="SerieVisualizar" />
+        <input type="hidden" id="Codigo" name="Codigo" value="<%=Codigo%>" />
         <div class="form-group row g-3">
         <div class="col">
         <%
@@ -208,11 +273,11 @@ function ApenasLetras(e, t) {
        <div class="form-group row g-3">
              <div class="col">
              <label for="txtNumAuto" class="col-form-label col-form-label-sm" >N° do Auto</label>
-            <input type="text" name="txtNumAuto"  maxlength="6" id="txtNumAuto" size="13" class="form-control  col-form-sm" onKeyPress="somente_numero(txtNumAuto);" onBlur="verificar_cadastro(); somente_numero(txtNumAuto);" value="<%=NumAuto%>"/>
+            <input type="text" name="txtNumAuto"  maxlength="6" id="txtNumAuto" size="13" class="form-control  col-form-sm" onKeyPress="somente_numero(txtNumAuto);" onBlur="verificar_cadastro(); somente_numero(txtNumAuto);" value="<%=trim(NumAuto)%>"/>
             </div>
              <div class="col">
             <label for="txtNumSerie" class="col-form-label col-form-label-sm" >Série</label>
-            <input type="text" name="txtNumSerie" id="txtNumSerie" size="8" class="form-control  col-form-sm" onKeyPress="return ApenasLetras(event,this);" value="<%=Serie%>" onBlur="verificar_cadastro();"/>
+            <input type="text" name="txtNumSerie" id="txtNumSerie" size="8" class="form-control  col-form-sm" onKeyPress="return ApenasLetras(event,this);" value="<%=trim(Serie)%>" maxlength="1" onBlur="verificar_cadastro();"/>
             </div>
             </div>
       <div class="form-group row g-3">
@@ -239,16 +304,22 @@ function ApenasLetras(e, t) {
           </span>
           <span class="text"><%IF Existe = 1 THEN%>Alterar<%ELSE%>Cadastrar<%END IF%></span>
         </button>
+        
+        <button class="btn btn-primary btn-icon-split" value="" onClick="return Novo();" >
+          <span class="icon text-white-50">
+          </span>
+          <span class="text">Novo</span>
+        </button>
         </form>
       </div>
     </div>
   </div>
       </div>
   </div>
-  <%if request("Operacao") = 4 OR REQUEST("Operacao") = 2 or REQUEST("Operacao") = 1 or REQUEST("Operacao") = 3 then%>
+  <%if request("Operacao") = 5 OR request("Operacao") = 4 OR REQUEST("Operacao") = 2 or REQUEST("Operacao") = 1 or REQUEST("Operacao") = 3 then%>
   <%
   call abreConexao
-	sql = "SELECT TB_Recipiente.CodigoItensModuloFace, TB_Modulos.Modulo, TB_Faces.Face, TB_Nivel.Nivel, TB_Pastas.Pasta, TB_CadDocumento.NumAuto, TB_CadDocumento.Serie, TB_CadDocumento.Status FROM TB_Recipiente INNER JOIN TB_Modulos ON TB_Recipiente.CodigoModulo = TB_Modulos.Codigo INNER JOIN TB_Faces ON TB_Recipiente.CodigoFace = TB_Faces.CodigoFace INNER JOIN TB_Nivel ON TB_Recipiente.ID_Nivel = TB_Nivel.ID_Nivel INNER JOIN TB_Pastas ON TB_Recipiente.ID_Pasta = TB_Pastas.ID INNER JOIN TB_CadDocumento ON TB_CadDocumento.CodigoItensModuloFace = TB_Recipiente.CodigoItensModuloFace WHERE TB_Recipiente.CodigoItensModuloFace = "&request("recipiente")&""
+	sql = "SELECT TB_CadDocumento.Codigo, TB_Recipiente.CodigoItensModuloFace, TB_Modulos.Modulo, TB_Faces.Face, TB_Nivel.Nivel, TB_Pastas.Pasta, TB_CadDocumento.NumAuto, TB_CadDocumento.Serie, TB_CadDocumento.Status FROM TB_Recipiente INNER JOIN TB_Modulos ON TB_Recipiente.CodigoModulo = TB_Modulos.Codigo INNER JOIN TB_Faces ON TB_Recipiente.CodigoFace = TB_Faces.CodigoFace INNER JOIN TB_Nivel ON TB_Recipiente.ID_Nivel = TB_Nivel.ID_Nivel INNER JOIN TB_Pastas ON TB_Recipiente.ID_Pasta = TB_Pastas.ID INNER JOIN TB_CadDocumento ON TB_CadDocumento.CodigoItensModuloFace = TB_Recipiente.CodigoItensModuloFace WHERE TB_Recipiente.CodigoItensModuloFace = "&request("recipiente")&""
 	set rs2 = conn.execute(sql)
   %>
   <div class="card">
@@ -318,7 +389,7 @@ function ApenasLetras(e, t) {
                           <%end if%>
                         </td>
                         <td>
-                          &nbsp&nbsp <a href="#" onClick="visualizar(<%=rs2("NumAuto")%>)"><img src="Imagens\olho.png" width="30"/></a>
+                          &nbsp&nbsp <a href="#" onClick="visualizar('<%=rs2("Codigo")%>')"><img src="Imagens\olho.png" width="30"/></a>
                         </td>
                       </tr>
                     </tbody>

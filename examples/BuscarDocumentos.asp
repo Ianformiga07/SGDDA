@@ -31,6 +31,17 @@ function validar()
 {
 var NumAuto = frmBusca.txtAuto.value;
 var Serie = frmBusca.txtSerie.value;  
+  if(NumAuto == "" && Serie == ""){
+      Swal.fire({
+      title: "Ops!!!",
+      text: "Obrigatorio o Preenchimento do Campo Numero e a Serie do Auto!",
+      icon: "error",
+      button: "Ok!",
+      });
+      frmBusca.txtAuto.focus()
+      return false;
+  } 
+  else
   if(NumAuto == ""){
       Swal.fire({
       title: "Ops!!!",
@@ -41,6 +52,7 @@ var Serie = frmBusca.txtSerie.value;
       frmBusca.txtAuto.focus()
       return false;
   } 
+  else
   if(Serie == ""){
       Swal.fire({
       title: "Ops!!!",
@@ -103,11 +115,11 @@ function ApenasLetras(e, t) {
        <div class="form-group row g-3">
              <div class="col">
              <label for="txtAuto" class="col-form-label col-form-label-sm" >N° do Auto</label>
-            <input type="text" name="txtAuto" id="txtAuto" size="13" class="form-control  col-form-sm" onKeyPress="somente_numero(txtAuto);" onBlur="somente_numero(txtAuto);" value="<%=(NumAuto)%>"/>
+            <input type="text" name="txtAuto" id="txtAuto" size="13" class="form-control  col-form-sm" onKeyPress="somente_numero(txtAuto);" onBlur="somente_numero(txtAuto);" maxlength="6" value="<%=(NumAuto)%>"/>
             </div>
          <div class="col">
             <label for="txtSerie" class="col-form-label col-form-label-sm" >Série</label>
-            <input type="text" name="txtSerie" id="txtSerie" size="8" class="form-control  col-form-sm" onKeyPress="return ApenasLetras(event,this);" value="<%=(Serie)%>"/>
+            <input type="text" name="txtSerie" id="txtSerie" maxlength="1" size="8" class="form-control  col-form-sm" onKeyPress="return ApenasLetras(event,this);" value="<%=(Serie)%>"/>
             </div>
             </div>
         <button class="btn btn-primary btn-icon-split" type="submit" onClick="visualizar();">
