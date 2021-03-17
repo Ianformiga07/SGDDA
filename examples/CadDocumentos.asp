@@ -11,9 +11,7 @@ resposta = 0
 IF REQUEST("Operacao") = 1 THEN
 call abreConexao
 sql = "SELECT    count(*) as Quantidade FROM     TB_CadDocumento  where CodigoItensModuloFace = '"&clng(request.form("recipiente"))&"' and Status = 1" 
-
 set rs = conn.execute(sql)
-
 if clng(rs("Quantidade")) <= 20 then
 sql = "INSERT INTO TB_CadDocumento(CodigoItensModuloFace, NumAuto, Serie, Observacao, Status) VALUES('"&clng(request.form("recipiente"))&"', '"&request.Form("txtNumAuto")&"', '"&request.Form("txtNumSerie")&"', '"&request.form("txtObs")&"', 1)"
 conn.execute(sql)
@@ -49,13 +47,13 @@ call fechaConexao
 
 ELSEIF REQUEST("Operacao") = 3 THEN 'ALTERAR
 	call abreConexao
-	sql = "SELECT count(*) as Existe FROM TB_CadDocumento where NumAuto = "&request.Form("txtNumAuto")&" and Serie = '"&request.Form("txtNumSerie")&"' and Status = 1"
+  sql = "SELECT count(*) as Existe FROM TB_CadDocumento where NumAuto = "&request.Form("txtNumAuto")&" and Serie = '"&request.Form("txtNumSerie")&"' and Status = 1 and Codigo <> '"&request.form("Codigo")&"'"
 	
 	set rs = conn.execute(sql)
 	if clng(rs("Existe")) = 0 then
 	  sql = "UPDATE TB_CadDocumento SET NumAuto = '"&request.Form("txtNumAuto")&"', Serie = '"&request.Form("txtNumSerie")&"', Observacao = '"&request.Form("txtObs")&"', Status = '"&request.Form("status")&"' WHERE Codigo = '"&request.form("Codigo")&"'"
 	  conn.execute(sql)
-	  sql = "SELECT    count(*) as Quantidade FROM     TB_CadDocumento  where CodigoItensModuloFace = '"&clng(request.form("recipiente"))&"' and Status = 1" 
+	  sql = "SELECT    count(*) as Quantidade FROM     TB_CadDocumento  where CodigoItensModuloFace = '"&clng(request.form("recipiente"))&"' and Status = 1 and Codigo <> '"&request.form("Codigo")&"'" 
       set rs = conn.execute(sql)
 	  if clng(rs("Quantidade")) > 7 then
 	   sql = "UPDATE TB_CadDocumento SET  Status = 0 WHERE Codigo = '"&request.form("Codigo")&"'"
@@ -225,14 +223,12 @@ function ApenasLetras(e, t) {
         alert(err.Description);
     }
 }
-
 function Novo()
 {
-	document.frmCadDocumento.Operacao.value = 8;
+document.frmCadDocumento.Operacao.value = 0;
 	document.frmCadDocumento.action = "CadDocumentos.asp";
 	document.frmCadDocumento.submit();
 }
-
 </script>
       <!-- End Navbar -->
       <div class="content">
@@ -304,12 +300,14 @@ function Novo()
           </span>
           <span class="text"><%IF Existe = 1 THEN%>Alterar<%ELSE%>Cadastrar<%END IF%></span>
         </button>
-        
-        <button class="btn btn-primary btn-icon-split" value="" onClick="return Novo();" >
+		<%if Existe = 1 then%>
+        <button class="btn btn-primary btn-icon-split" value="" onClick="Novo();" >
           <span class="icon text-white-50">
           </span>
           <span class="text">Novo</span>
         </button>
+        <%end if%>
+
         </form>
       </div>
     </div>
@@ -373,7 +371,7 @@ function Novo()
                           <%=rs2("Nivel")%>
                         </td>
                         <td>
-                          <%=rs2("Pasta")%>
+                          Pasta <%=rs2("CodigoItensModuloFace")%>
                         </td>
                         <td>
                           <%=rs2("NumAuto")%>
